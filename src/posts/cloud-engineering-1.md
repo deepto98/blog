@@ -132,5 +132,5 @@ I want to create a blog (we'll do the blog in the next part though, for now I'll
 
 ### Todos:
 There's two DNS transfers we can do - 
-1. nameserver transfer, which we did in this video
+1. nameserver transfer, which we did in this blog
 2. seller transfer, where we transfer the ownership of the entire domain from one provider to another. I should try this later
