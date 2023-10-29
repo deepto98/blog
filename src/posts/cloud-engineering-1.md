@@ -62,7 +62,7 @@ I want to create a blog (we'll do the blog in the next part though, for now I'll
 * First, create a bucket with a suitable name i.e `deepto.xyz`
 * Second, tell my Cloudflare DNS where the bucket is using CNAME (Canonical Name)
 
-    #### 1. Creating a bucket
+  #### 1. Creating a bucket
   1. Go to the AWS S3 Console - `https://s3.console.aws.amazon.com/` > Create bucket >
   2. The bucket name must match the intended website on which its to be hosted, including the subdomain (ie abc. xyz.com). For me, its `www.deepto.xyz`  
 
