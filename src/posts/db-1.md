@@ -2,6 +2,7 @@
 title: Studying Databases 1 - Relational Model & Relational Algebra 
 description:  Databases 1 - Relational Model & Relational Algebra
 date: 2023-10-30
+draft: true
 tags:
   - posts
 layout: layouts/post.njk
@@ -25,4 +26,9 @@ I've been planning to dig deep into databases for a while, and eventually try an
         * We can't have multiple artists for an album
         * Handling deletion is difficult e.g if we delete an artist, what happens to the albums
     * Implementation:
-      *    
+      *  Finding a particular record is difficult
+      *  Multiple apps can't use the same db 
+      *  What if multiple threads try to write to the file at once?  
+    * Durability:
+      *  How do we handle failures e.g the machine crashes during a write
+      *  How  do we replicate the db for higher availibility 

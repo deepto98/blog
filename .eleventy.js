@@ -36,7 +36,11 @@ module.exports = function(eleventyConfig) {
   if (seo.url === "glitch-default") {
     seo.url = `https://${process.env.PROJECT_DOMAIN}.glitch.me`;
   }
+
   eleventyConfig.addPlugin(pluginSEO, seo);
+	// App plugins
+	eleventyConfig.addPlugin(require("./.eleventy.config.drafts.js"));
+
 
   // Filters let you modify the content https://www.11ty.dev/docs/filters/
   eleventyConfig.addFilter("htmlDateString", dateObj => {
