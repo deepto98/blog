@@ -5,7 +5,8 @@
   "scripts": {
     "start": "eleventy --serve",
     "dev": "concurrently \"eleventy --serve\" \"node spotify-api-backend/server.js\"",
-    "build": "NODE_ENV=production eleventy"
+    "build": "concurrently \"NODE_ENV=production eleventy\" \"node spotify-api-backend/server.js\""
+
   },
   "dependencies": {
     "axios": "^1.10.0",
