@@ -9,8 +9,7 @@ console.log('- SPOTIFY_CLIENT_ID:', process.env.SPOTIFY_CLIENT_ID ? 'Set' : 'Mis
 console.log('- SPOTIFY_CLIENT_SECRET:', process.env.SPOTIFY_CLIENT_SECRET ? 'Set' : 'Missing');
 console.log('- SPOTIFY_REDIRECT_URI:', process.env.SPOTIFY_REDIRECT_URI || 'Using default');
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+const router = express.Router();
 
 // In-memory storage for tokens (use database in production)
 let accessToken = null;
@@ -27,7 +26,7 @@ const getAuthHeaders = () => ({
 });
 
 // Step 1: Redirect to Spotify authorization
-app.get('/login', (req, res) => {
+router.get('/login', (req, res) => {
   console.log('🔐 Login request received');
   console.log('📍 Redirect URI being used:', process.env.SPOTIFY_REDIRECT_URI);
   console.log('🔑 Client ID:', process.env.SPOTIFY_CLIENT_ID);
@@ -55,7 +54,7 @@ app.get('/login', (req, res) => {
 });
 
 // Step 2: Handle callback and exchange code for tokens
-app.get('/callback', async (req, res) => {
+router.get('/callback', async (req, res) => {
   const { code, state } = req.query;
 
   if (!code) {
@@ -119,8 +118,8 @@ const refreshAccessToken = async () => {
 };
 
 // Main Spotify endpoint
-app.get('/spotify', async (req, res) => {
-  if (!accessToken) {
+router.get('/spotify', async (req, res) => {
+    if (!accessToken) {
     return res.status(401).json({ 
       error: 'Not authenticated. Please visit /login first.' 
     });
@@ -174,8 +173,8 @@ app.get('/spotify', async (req, res) => {
       top_tracks: topTracks,
       now_playing: nowPlaying,
       actions: {
-        stop_playback: `${req.protocol}://${req.get('host')}/spotify/stop`,
-        play_track: `${req.protocol}://${req.get('host')}/spotify/play/{track_uri}`
+        stop_playback: `${req.protocol}://${req.get('host')}${req.baseUrl}/stop`,
+        play_track: `${req.protocol}://${req.get('host')}${req.baseUrl}/play/{track_uri}`
       }
     });
 
@@ -185,7 +184,7 @@ app.get('/spotify', async (req, res) => {
       try {
         await refreshAccessToken();
         // Retry the request
-        return app.get('/spotify')(req, res);
+        return handleSpotifyRequest(req, res);
       } catch (refreshError) {
         return res.status(401).json({ 
           error: 'Token expired and refresh failed. Please re-authenticate at /login' 
@@ -201,7 +200,7 @@ app.get('/spotify', async (req, res) => {
 });
 
 // Stop currently playing track
-app.get('/spotify/stop', async (req, res) => {
+router.get('/spotify/stop', async (req, res) => {
   if (!accessToken) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
@@ -227,8 +226,8 @@ app.get('/spotify/stop', async (req, res) => {
 });
 
 // Play a specific track
-app.get('/spotify/play/:trackUri', async (req, res) => {
-  if (!accessToken) {
+router.get('/spotify/play/:trackUri', async (req, res) => {
+    if (!accessToken) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
 
@@ -277,8 +276,8 @@ app.get('/spotify/play/:trackUri', async (req, res) => {
 });
 
 // Alternative endpoint that accepts track ID directly
-app.get('/spotify/play-id/:trackId', async (req, res) => {
-  if (!accessToken) {
+router.get('/spotify/play-id/:trackId', async (req, res) => {
+    if (!accessToken) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
 
@@ -322,7 +321,7 @@ app.get('/spotify/play-id/:trackId', async (req, res) => {
 });
 
 // Health check
-app.get('/health', (req, res) => {
+router.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     authenticated: !!accessToken,
@@ -352,14 +351,4 @@ process.on('SIGTERM', () => {
   process.exit(0);
 });
 
-app.listen(PORT, () => {
-  console.log(`✅ Server running on http://localhost:${PORT}`);
-  console.log(`📱 Visit http://localhost:${PORT}/login to authenticate with Spotify`);
-  console.log(`🎵 Then visit http://localhost:${PORT}/spotify to see your data`);
-}).on('error', (err) => {
-  console.error('❌ Server failed to start:', err);
-  if (err.code === 'EADDRINUSE') {
-    console.error(`Port ${PORT} is already in use. Try a different port by setting PORT environment variable.`);
-  }
-  process.exit(1);
-});
+module.exports = router;
