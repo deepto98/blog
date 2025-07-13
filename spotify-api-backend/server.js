@@ -1,13 +1,18 @@
-const express = require('express');
-const axios = require('axios');
-const querystring = require('querystring');
-require('dotenv').config();
+const express = require("express");
+const axios = require("axios");
+const querystring = require("querystring");
+require("dotenv").config();
 
-console.log('Starting Spotify API server...');
-console.log('Environment variables loaded:');
-console.log('- SPOTIFY_CLIENT_ID:', process.env.SPOTIFY_CLIENT_ID ? 'Set' : 'Missing');
-console.log('- SPOTIFY_CLIENT_SECRET:', process.env.SPOTIFY_CLIENT_SECRET ? 'Set' : 'Missing');
-console.log('- SPOTIFY_REDIRECT_URI:', process.env.SPOTIFY_REDIRECT_URI || 'Using default');
+console.log("Starting Spotify API server...");
+console.log("Environment variables loaded:");
+console.log(
+  "- SPOTIFY_CLIENT_ID:",
+  process.env.SPOTIFY_CLIENT_ID ? "Set" : "Missing"
+);
+console.log(
+  "- SPOTIFY_CLIENT_SECRET:",
+  process.env.SPOTIFY_CLIENT_SECRET ? "Set" : "Missing"
+);
 
 const router = express.Router();
 
@@ -16,95 +21,100 @@ let accessToken = null;
 let refreshToken = null;
 
 // Spotify API endpoints
-const SPOTIFY_API_BASE = 'https://api.spotify.com/v1';
-const SPOTIFY_ACCOUNTS_BASE = 'https://accounts.spotify.com';
+const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
+const SPOTIFY_ACCOUNTS_BASE = "https://accounts.spotify.com";
 
 // Helper function to get headers with auth
 const getAuthHeaders = () => ({
-  'Authorization': `Bearer ${accessToken}`,
-  'Content-Type': 'application/json'
+  Authorization: `Bearer ${accessToken}`,
+  "Content-Type": "application/json",
 });
 
 // Step 1: Redirect to Spotify authorization
-router.get('/login', (req, res) => {
-  console.log('🔐 Login request received');
-  console.log('📍 Redirect URI being used:', process.env.SPOTIFY_REDIRECT_URI);
-  console.log('🔑 Client ID:', process.env.SPOTIFY_CLIENT_ID);
-  
-  const scopes = [
-    'user-read-private',
-    'user-read-email',
-    'user-read-playback-state',
-    'user-modify-playback-state',
-    'user-read-currently-playing',
-    'user-top-read'
-  ].join(' ');
+router.get("/login", (req, res) => {
+  const baseUrl = req.protocol + "://" + req.get("host");
 
-  const authURL = `${SPOTIFY_ACCOUNTS_BASE}/authorize?` +
+  console.log("🔐 Login request received");
+  console.log("📍 Redirect URI being used:", `${baseUrl}/callback`);
+  console.log("🔑 Client ID:", process.env.SPOTIFY_CLIENT_ID);
+
+  const scopes = [
+    "user-read-private",
+    "user-read-email",
+    "user-read-playback-state",
+    "user-modify-playback-state",
+    "user-read-currently-playing",
+    "user-top-read",
+  ].join(" ");
+
+  const authURL =
+    `${SPOTIFY_ACCOUNTS_BASE}/authorize?` +
     querystring.stringify({
-      response_type: 'code',
+      response_type: "code",
       client_id: process.env.SPOTIFY_CLIENT_ID,
       scope: scopes,
-      redirect_uri: process.env.SPOTIFY_REDIRECT_URI,
-      state: 'some-state-value'
+      redirect_uri: `${baseUrl}/callback`,
+      state: "some-state-value",
     });
 
-  console.log('🔗 Full auth URL:', authURL);
+  console.log("🔗 Full auth URL:", authURL);
   res.redirect(authURL);
 });
 
 // Step 2: Handle callback and exchange code for tokens
-router.get('/callback', async (req, res) => {
+router.get("/callback", async (req, res) => {
+  const baseUrl = req.protocol + "://" + req.get("host");
   const { code, state } = req.query;
 
   if (!code) {
-    return res.status(400).json({ error: 'Authorization code missing' });
+    return res.status(400).json({ error: "Authorization code missing" });
   }
 
   try {
     const tokenResponse = await axios.post(
       `${SPOTIFY_ACCOUNTS_BASE}/api/token`,
       querystring.stringify({
-        grant_type: 'authorization_code',
+        grant_type: "authorization_code",
         code: code,
-        redirect_uri: process.env.SPOTIFY_REDIRECT_URI,
+        redirect_uri: `${baseUrl}/callback`,
         client_id: process.env.SPOTIFY_CLIENT_ID,
-        client_secret: process.env.SPOTIFY_CLIENT_SECRET
+        client_secret: process.env.SPOTIFY_CLIENT_SECRET,
       }),
       {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
       }
     );
 
     accessToken = tokenResponse.data.access_token;
     refreshToken = tokenResponse.data.refresh_token;
 
-    res.json({ 
-      message: 'Authentication successful! You can now use the /spotify endpoint.',
-      access_token: accessToken.substring(0, 10) + '...' // Don't expose full token
+    res.json({
+      message:
+        "Authentication successful! You can now use the /spotify endpoint.",
+      access_token: accessToken.substring(0, 10) + "...", // Don't expose full token
     });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to exchange code for tokens' });
+    res.status(500).json({ error: "Failed to exchange code for tokens" });
   }
 });
 
 // Helper function to refresh access token
 const refreshAccessToken = async () => {
   if (!refreshToken) {
-    throw new Error('No refresh token available');
+    throw new Error("No refresh token available");
   }
 
   try {
     const response = await axios.post(
       `${SPOTIFY_ACCOUNTS_BASE}/api/token`,
       querystring.stringify({
-        grant_type: 'refresh_token',
+        grant_type: "refresh_token",
         refresh_token: refreshToken,
         client_id: process.env.SPOTIFY_CLIENT_ID,
-        client_secret: process.env.SPOTIFY_CLIENT_SECRET
+        client_secret: process.env.SPOTIFY_CLIENT_SECRET,
       }),
       {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
       }
     );
 
@@ -113,15 +123,15 @@ const refreshAccessToken = async () => {
       refreshToken = response.data.refresh_token;
     }
   } catch (error) {
-    throw new Error('Failed to refresh access token');
+    throw new Error("Failed to refresh access token");
   }
 };
 
 // Main Spotify endpoint
-router.get('/spotify', async (req, res) => {
-    if (!accessToken) {
-    return res.status(401).json({ 
-      error: 'Not authenticated. Please visit /login first.' 
+router.get("/spotify", async (req, res) => {
+  if (!accessToken) {
+    return res.status(401).json({
+      error: "Not authenticated. Please visit /login first.",
     });
   }
 
@@ -146,38 +156,46 @@ router.get('/spotify', async (req, res) => {
     }
 
     // Format top tracks
-    const topTracks = topTracksResponse.data.items.map(track => ({
+    const topTracks = topTracksResponse.data.items.map((track) => ({
       id: track.id,
       name: track.name,
-      artist: track.artists.map(artist => artist.name).join(', '),
+      artist: track.artists.map((artist) => artist.name).join(", "),
       album: track.album.name,
       uri: track.uri,
       preview_url: track.preview_url,
-      external_urls: track.external_urls
+      external_urls: track.external_urls,
     }));
 
     // Format currently playing
-    const nowPlaying = currentlyPlaying && currentlyPlaying.item ? {
-      id: currentlyPlaying.item.id,
-      name: currentlyPlaying.item.name,
-      artist: currentlyPlaying.item.artists.map(artist => artist.name).join(', '),
-      album: currentlyPlaying.item.album.name,
-      is_playing: currentlyPlaying.is_playing,
-      progress_ms: currentlyPlaying.progress_ms,
-      duration_ms: currentlyPlaying.item.duration_ms,
-      uri: currentlyPlaying.item.uri,
-      external_urls: currentlyPlaying.item.external_urls
-    } : null;
+    const nowPlaying =
+      currentlyPlaying && currentlyPlaying.item
+        ? {
+            id: currentlyPlaying.item.id,
+            name: currentlyPlaying.item.name,
+            artist: currentlyPlaying.item.artists
+              .map((artist) => artist.name)
+              .join(", "),
+            album: currentlyPlaying.item.album.name,
+            is_playing: currentlyPlaying.is_playing,
+            progress_ms: currentlyPlaying.progress_ms,
+            duration_ms: currentlyPlaying.item.duration_ms,
+            uri: currentlyPlaying.item.uri,
+            external_urls: currentlyPlaying.item.external_urls,
+          }
+        : null;
 
     res.json({
       top_tracks: topTracks,
       now_playing: nowPlaying,
       actions: {
-        stop_playback: `${req.protocol}://${req.get('host')}${req.baseUrl}/stop`,
-        play_track: `${req.protocol}://${req.get('host')}${req.baseUrl}/play/{track_uri}`
-      }
+        stop_playback: `${req.protocol}://${req.get("host")}${
+          req.baseUrl
+        }/stop`,
+        play_track: `${req.protocol}://${req.get("host")}${
+          req.baseUrl
+        }/play/{track_uri}`,
+      },
     });
-
   } catch (error) {
     if (error.response && error.response.status === 401) {
       // Token expired, try to refresh
@@ -186,23 +204,24 @@ router.get('/spotify', async (req, res) => {
         // Retry the request
         return handleSpotifyRequest(req, res);
       } catch (refreshError) {
-        return res.status(401).json({ 
-          error: 'Token expired and refresh failed. Please re-authenticate at /login' 
+        return res.status(401).json({
+          error:
+            "Token expired and refresh failed. Please re-authenticate at /login",
         });
       }
     }
-    
-    res.status(500).json({ 
-      error: 'Failed to fetch Spotify data',
-      details: error.response?.data || error.message 
+
+    res.status(500).json({
+      error: "Failed to fetch Spotify data",
+      details: error.response?.data || error.message,
     });
   }
 });
 
 // Stop currently playing track
-router.get('/spotify/stop', async (req, res) => {
+router.get("/spotify/stop", async (req, res) => {
   if (!accessToken) {
-    return res.status(401).json({ error: 'Not authenticated' });
+    return res.status(401).json({ error: "Not authenticated" });
   }
 
   try {
@@ -212,142 +231,144 @@ router.get('/spotify/stop', async (req, res) => {
       { headers: getAuthHeaders() }
     );
 
-    res.json({ message: 'Playback stopped successfully' });
+    res.json({ message: "Playback stopped successfully" });
   } catch (error) {
     if (error.response && error.response.status === 404) {
-      res.status(404).json({ error: 'No active device found' });
+      res.status(404).json({ error: "No active device found" });
     } else {
-      res.status(500).json({ 
-        error: 'Failed to stop playback',
-        details: error.response?.data || error.message 
+      res.status(500).json({
+        error: "Failed to stop playback",
+        details: error.response?.data || error.message,
       });
     }
   }
 });
 
 // Play a specific track
-router.get('/spotify/play/:trackUri', async (req, res) => {
-    if (!accessToken) {
-    return res.status(401).json({ error: 'Not authenticated' });
+router.get("/spotify/play/:trackUri", async (req, res) => {
+  if (!accessToken) {
+    return res.status(401).json({ error: "Not authenticated" });
   }
 
   let trackUri = req.params.trackUri;
-  
+
   // Convert track ID to URI if needed
-  if (!trackUri.startsWith('spotify:track:')) {
+  if (!trackUri.startsWith("spotify:track:")) {
     // If it's just an ID (like "254bXAqt3zP6P50BdQvEsq"), convert to URI
     trackUri = `spotify:track:${trackUri}`;
   }
-  
-  console.log('🎵 Attempting to play track:', trackUri);
-  
+
+  console.log("🎵 Attempting to play track:", trackUri);
+
   try {
     await axios.put(
       `${SPOTIFY_API_BASE}/me/player/play`,
       {
-        uris: [trackUri]
+        uris: [trackUri],
       },
       { headers: getAuthHeaders() }
     );
 
-    res.json({ 
+    res.json({
       message: `Started playing track: ${trackUri}`,
-      original_input: req.params.trackUri
+      original_input: req.params.trackUri,
     });
   } catch (error) {
-    console.error('❌ Play error:', error.response?.data || error.message);
-    
+    console.error("❌ Play error:", error.response?.data || error.message);
+
     if (error.response && error.response.status === 404) {
-      res.status(404).json({ 
-        error: 'No active device found. Please open Spotify on a device and start playing something first.' 
+      res.status(404).json({
+        error:
+          "No active device found. Please open Spotify on a device and start playing something first.",
       });
     } else if (error.response && error.response.status === 403) {
-      res.status(403).json({ 
-        error: 'Premium subscription required for playback control' 
+      res.status(403).json({
+        error: "Premium subscription required for playback control",
       });
     } else {
-      res.status(500).json({ 
-        error: 'Failed to start playback',
+      res.status(500).json({
+        error: "Failed to start playback",
         details: error.response?.data || error.message,
-        tried_uri: trackUri
+        tried_uri: trackUri,
       });
     }
   }
 });
 
 // Alternative endpoint that accepts track ID directly
-router.get('/spotify/play-id/:trackId', async (req, res) => {
-    if (!accessToken) {
-    return res.status(401).json({ error: 'Not authenticated' });
+router.get("/spotify/play-id/:trackId", async (req, res) => {
+  if (!accessToken) {
+    return res.status(401).json({ error: "Not authenticated" });
   }
 
   const trackId = req.params.trackId;
   const trackUri = `spotify:track:${trackId}`;
-  
-  console.log('🎵 Playing track by ID:', trackId, '→', trackUri);
-  
+
+  console.log("🎵 Playing track by ID:", trackId, "→", trackUri);
+
   try {
     await axios.put(
       `${SPOTIFY_API_BASE}/me/player/play`,
       {
-        uris: [trackUri]
+        uris: [trackUri],
       },
       { headers: getAuthHeaders() }
     );
 
-    res.json({ 
+    res.json({
       message: `Started playing track: ${trackUri}`,
-      track_id: trackId
+      track_id: trackId,
     });
   } catch (error) {
-    console.error('❌ Play error:', error.response?.data || error.message);
-    
+    console.error("❌ Play error:", error.response?.data || error.message);
+
     if (error.response && error.response.status === 404) {
-      res.status(404).json({ 
-        error: 'No active device found. Please open Spotify on a device and start playing something first.' 
+      res.status(404).json({
+        error:
+          "No active device found. Please open Spotify on a device and start playing something first.",
       });
     } else if (error.response && error.response.status === 403) {
-      res.status(403).json({ 
-        error: 'Premium subscription required for playback control' 
+      res.status(403).json({
+        error: "Premium subscription required for playback control",
       });
     } else {
-      res.status(500).json({ 
-        error: 'Failed to start playback',
+      res.status(500).json({
+        error: "Failed to start playback",
         details: error.response?.data || error.message,
-        tried_uri: trackUri
+        tried_uri: trackUri,
       });
     }
   }
 });
 
 // Health check
-router.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+router.get("/health", (req, res) => {
+  res.json({
+    status: "OK",
     authenticated: !!accessToken,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
 // Global error handlers
-process.on('uncaughtException', (error) => {
-  console.error('❌ Uncaught Exception:', error);
+process.on("uncaughtException", (error) => {
+  console.error("❌ Uncaught Exception:", error);
   process.exit(1);
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("❌ Unhandled Rejection at:", promise, "reason:", reason);
   process.exit(1);
 });
 
 // Graceful shutdown
-process.on('SIGINT', () => {
-  console.log('\n🛑 Received SIGINT, shutting down gracefully...');
+process.on("SIGINT", () => {
+  console.log("\n🛑 Received SIGINT, shutting down gracefully...");
   process.exit(0);
 });
 
-process.on('SIGTERM', () => {
-  console.log('\n🛑 Received SIGTERM, shutting down gracefully...');
+process.on("SIGTERM", () => {
+  console.log("\n🛑 Received SIGTERM, shutting down gracefully...");
   process.exit(0);
 });
 
