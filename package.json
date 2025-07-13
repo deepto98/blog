@@ -4,14 +4,21 @@
   "description": "A simple blog, set up with Eleventy.",
   "scripts": {
     "start": "eleventy --serve",
+    "dev": "concurrently \"eleventy --serve\" \"node spotify-api-backend/server.js\"",
     "build": "NODE_ENV=production eleventy"
   },
   "dependencies": {
+    "axios": "^1.10.0",
+    "concurrently": "^9.2.0",
+    "dotenv": "^17.2.0",
     "eleventy-plugin-seo": "0.5.2",
-    "luxon": "^3.4.0"
+    "express": "^5.1.0",
+    "luxon": "^3.4.0",
+    "node-fetch": "^2.6.7",
+    "querystring": "^0.2.1"
   },
   "devDependencies": {
-    "@11ty/eleventy": "^2.0.0"
+    "@11ty/eleventy": "^3.1.2"
   },
   "engines": {
     "node": "14"
